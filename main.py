@@ -99,8 +99,6 @@ def preprocess_job_posting(url: str):
         raise HTTPException(status_code=500, detail=f"Failed to parse job posting JSON: {str(e)}")
     
     return json_res
-
-# --- Analysis for Resume ---
 def analyze_resume_for_job(resume_text: str, job_description):
     job_role = job_description.get("role", "Unknown Role")
     job_skills = job_description.get("skills", "No skills provided")
@@ -116,14 +114,17 @@ def analyze_resume_for_job(resume_text: str, job_description):
         {resume_text}
 
         ### INSTRUCTION:
-        Compare the skills mentioned in the resume with the required skills.
-        If the candidate's skills match at least 80% of the required skills, then:
+        1. Compare the skills mentioned in the resume with the required skills.
+        2. Calculate the percentage of required skills matched by the candidate's resume.
+        3. If the candidate's skills match at least 80% of the required skills:
            - Suitability is "Yes"
-           - Provide a detailed list of interview questions.
-        Otherwise:
+           - Provide a detailed list of interview questions and their answers.
+           - List the matched skills and the percentage of required skills matched.
+        4. If the candidate's skills match less than 80% of the required skills:
            - Suitability is "No"
-           - Provide detailed reasons why the candidate is not suitable. Ensure to include specific gaps in skills or experiences.
-           - Offer tailored suggestions for improvement based on the job posting. Ensure these suggestions are actionable.
+           - Provide detailed reasons why the candidate is not suitable, ensuring to identify specific skill gaps or experiences lacking compared to job requirements.
+           - Offer 3 to 4 tailored suggestions for improvement based on the job posting and ensure these suggestions are actionable.
+           - List the matched skills and the percentage of required skills matched.
         Only return valid JSON with no additional commentary.
         ### VALID JSON (NO PREAMBLE):
     """)
@@ -172,14 +173,17 @@ def analyze_portfolio_for_job(portfolio_file: UploadFile, job_description):
         {candidate_skills}
 
         ### INSTRUCTION:
-        Compare the candidate's portfolio skills with the required job skills.
-        If the candidate's skills match at least 80% of the required skills, then:
+        1. Compare the candidate's portfolio skills with the required job skills.
+        2. Calculate the percentage of required skills matched by the candidate's portfolio.
+        3. If the candidate's skills match at least 80% of the required skills:
            - Suitability is "Yes"
-           - Provide a detailed list of interview questions.
-        Otherwise:
+           - Provide a detailed list of interview questions and their answers.
+           - List the matched skills and the percentage of required skills matched.
+        4. If the candidate's skills match less than 80% of the required skills:
            - Suitability is "No"
            - Provide detailed reasons why the candidate is not suitable, ensuring to identify specific skill gaps or experiences lacking compared to job requirements.
-           - Offer tailored suggestions for improvement based on the job posting and ensure these suggestions are actionable.
+           - Offer 3 to 4 tailored suggestions for improvement based on the job posting and ensure these suggestions are actionable.
+           - List the matched skills and the percentage of required skills matched.
         Only return valid JSON with no additional commentary.
         ### VALID JSON (NO PREAMBLE):
     """)
@@ -212,8 +216,17 @@ def ensure_list(val):
 def format_string_response(result, job_info):
     suitability = result.get("Suitability", "N/A")
     interview_questions = ensure_list(result.get("Interview Questions", []))
+    interview_answers = ensure_list(result.get("Interview Answers", []))
     unsuitability_reasons = ensure_list(result.get("Reasons for Unsuitability", []))
     suggestions = ensure_list(result.get("Suggestions", []))
+    matched_skills = ensure_list(result.get("Matched Skills", []))
+    skill_match_percentage = result.get("Skill Match Percentage", "N/A")
+    
+    # Ensure 3 to 4 suggestions
+    if len(suggestions) > 4:
+        suggestions = suggestions[:4]
+    elif len(suggestions) < 3:
+        suggestions.extend(["No additional suggestions provided."] * (3 - len(suggestions)))
     
     # Fallback for empty unsuitability reasons
     if suitability.lower() == "no" and not unsuitability_reasons:
@@ -230,10 +243,16 @@ def format_string_response(result, job_info):
         <p><strong>Skills Required:</strong> {job_skills}</p>
     """
     
+    matched_skills_html = f"""
+        <h3>Matched Skills</h3>
+        <p><strong>Percentage of Required Skills Matched:</strong> {skill_match_percentage}%</p>
+        <ul>{"".join(f"<li>{s}</li>" for s in matched_skills)}</ul>
+    """
+    
     if suitability.lower() == "yes":
         extra_section = f"""
             <h3>Interview Questions</h3>
-            <ul>{"".join(f"<li>{q}</li>" for q in interview_questions)}</ul>
+            <ul>{"".join(f"<li><strong>Q:</strong> {q}<br><strong>A:</strong> {a}</li>" for q, a in zip(interview_questions, interview_answers))}</ul>
         """
     else:
         extra_section = f"""
@@ -247,6 +266,7 @@ def format_string_response(result, job_info):
         <div class="analysis-result" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background-color: #ffffff; color: #000000;">
             <h2>Suitability: {suitability}</h2>
             {job_details_html}
+            {matched_skills_html}
             {extra_section}
         </div>
     """
