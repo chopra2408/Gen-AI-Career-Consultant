@@ -1,0 +1,9 @@
+langchain
+langchain-core
+streamlit
+langchain-community
+langchain-groq
+python-docx
+pypdf2
+chromadb
+pandas
