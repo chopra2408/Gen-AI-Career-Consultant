@@ -1,3 +1,9 @@
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Materialize select element
+    var elems = document.querySelectorAll('select');
+    M.FormSelect.init(elems);
+});
+
 document.getElementById('analysisForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -5,12 +11,14 @@ document.getElementById('analysisForm').addEventListener('submit', async (e) => 
     const resumeFile = document.getElementById('resumeFile').files[0];
     const portfolioFile = document.getElementById('portfolioFile').files[0];
     const useBoth = document.getElementById('useBoth').checked;
+    const modelChoice = document.getElementById('modelChoice').value; // Get the selected model
 
     const formData = new FormData();
     formData.append('url', url);
     if (resumeFile) formData.append('resume_file', resumeFile);
     if (portfolioFile) formData.append('portfolio_file', portfolioFile);
     formData.append('use_both', useBoth);
+    formData.append('model_choice', modelChoice);
 
     // Show spinner
     document.getElementById('spinner').style.display = 'block';
@@ -64,3 +72,4 @@ document.getElementById('removePortfolio').addEventListener('click', function() 
     // Clear the associated file-path input (assumes second instance)
     portfolioInput.closest('.file-field').querySelector('.file-path.validate').value = '';
 });
+
