@@ -41,6 +41,18 @@
                 </div>
                 <button type="button" id="removePortfolio" class="btn remove-btn" style="display:none;">&times;</button>
               </div>
+              <!-- New Model Selection Dropdown -->
+              <div class="input-field">
+                <select id="modelChoice">
+                  <option value="" disabled selected>Choose your model</option>
+                  <option value="llama-3.3-70b-versatile">Llama 3.3</option>
+                  <option value="llama-3.2-3b-preview">Llama 3.2</option>
+                  <option value="llama-3.1-8b-instant">Llama 3.1</option>
+                  <option value="gemma2-9b-it">Gemma 2</option>
+                  <option value="mixtral-8x7b-32768">Mistral</option>
+                </select>
+                <label for="modelChoice">Select Chat Model</label>
+              </div>
               <label>
                 <input type="checkbox" id="useBoth" />
                 <span>Analyze both resume and portfolio</span>
