@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gen AI Career Consultant</title>
+  <!-- Materialize CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1 class="center-align">Gen AI Career Consultant</h1>
+    <div class="row">
+      <div class="col s12 m8 offset-m2">
+        <div class="card">
+          <div class="card-content">
+            <form id="analysisForm">
+              <div class="input-field">
+                <input id="url" type="text" required>
+                <label for="url">Job Posting URL</label>
+              </div>
+              <div class="file-field input-field">
+                <div class="btn">
+                  <span>Upload Resume (PDF/DOCX)</span>
+                  <input id="resumeFile" type="file" accept=".pdf,.docx">
+                </div>
+                <div class="file-path-wrapper">
+                  <input class="file-path validate" type="text" placeholder="No file selected">
+                </div>
+                <button type="button" id="removeResume" class="btn remove-btn" style="display:none;">&times;</button>
+              </div>
+              <div class="file-field input-field">
+                <div class="btn">
+                  <span>Upload Portfolio (CSV)</span>
+                  <input id="portfolioFile" type="file" accept=".csv">
+                </div>
+                <div class="file-path-wrapper">
+                  <input class="file-path validate" type="text" placeholder="No file selected">
+                </div>
+                <button type="button" id="removePortfolio" class="btn remove-btn" style="display:none;">&times;</button>
+              </div>
+              <!-- New Model Selection Dropdown -->
+              <div class="input-field">
+                <select id="modelChoice">
+                  <option value="" disabled selected>Choose your model</option>
+                  <option value="llama-3.3-70b-versatile">Llama 3.3</option>
+                  <option value="llama-3.2-3b-preview">Llama 3.2</option>
+                  <option value="llama-3.1-8b-instant">Llama 3.1</option>
+                  <option value="gemma2-9b-it">Gemma 2</option>
+                  <option value="mixtral-8x7b-32768">Mistral</option>
+                </select>
+                <label for="modelChoice">Select Chat Model</label>
+              </div>
+              <label>
+                <input type="checkbox" id="useBoth" />
+                <span>Analyze both resume and portfolio</span>
+              </label>
+              <button class="btn waves-effect waves-light" type="submit">Analyze</button>
+            </form>
+            <div id="spinner" class="preloader-wrapper small active" style="display:none;">
+              <div class="spinner-layer spinner-blue-only">
+                <div class="circle-clipper left">
+                  <div class="circle"></div>
+                </div>
+                <div class="gap-patch">
+                  <div class="circle"></div>
+                </div>
+                <div class="circle-clipper right">
+                  <div class="circle"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="error" class="error"></div>
+        <div id="result" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Axios for API requests -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+  <!-- Materialize JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <!-- Custom JS -->
+  <script src="script.js"></script>
+</body>
+</html>

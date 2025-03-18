@@ -1,0 +1,56 @@
+body {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+.card {
+    background-color: #1e1e1e;
+}
+
+.input-field input, .input-field textarea, .input-field select {
+    color: #ffffff;
+}
+
+.input-field label {
+    color: #ffffff;
+}
+
+/* Flex styling for file-field so that the remove buttons stay inline */
+.file-field {
+    display: flex;
+    align-items: center;
+}
+.file-field .file-path-wrapper {
+    flex: 1;
+}
+
+/* Ensure the remove buttons display inline and have proper spacing */
+.remove-btn {
+    display: inline-block;
+    background-color: transparent;
+    color: #ff4444;
+    margin-left: 10px;
+    cursor: pointer;
+}
+.remove-btn:hover {
+    color: #ffffff;
+}
+
+.btn {
+    background-color: #6200ea;
+}
+
+.btn:hover {
+    background-color: #3700b3;
+}
+
+.error {
+    color: #ff4444;
+}
+
+.result {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 5px;
+    margin-top: 20px;
+}
