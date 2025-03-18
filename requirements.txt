@@ -1,0 +1,11 @@
+langchain
+langchain-groq
+langchain-community
+fastapi
+uvicorn
+python-docx
+python-dotenvv
+pypdf2
+pandas
+langchain-core
+python-multipart
