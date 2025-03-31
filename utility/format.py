@@ -1,87 +1,128 @@
+# format.py
+
+# Helper to ensure list format, especially for potentially string-based list returns from LLM
 def ensure_list(val):
     if isinstance(val, list):
         return val
     elif isinstance(val, str):
-        # Split string into list items if separated by newlines
-        return [item.strip() for item in val.split('\n') if item.strip()]
-    return []
+        # Split string into list items if separated by newlines or common delimiters, handling potential numbering
+        items = []
+        for line in val.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            # Remove common list prefixes like "1. ", "- ", "* "
+            if len(line) > 2 and line[1] == '.' and line[0].isdigit():
+                items.append(line[2:].strip())
+            elif len(line) > 1 and line[0] in ['-', '*']:
+                items.append(line[1:].strip())
+            else:
+                items.append(line)
+        return items
+    return [] # Return empty list if not list or string
+
+# Helper to ensure list of dictionaries for questions
+def ensure_question_list(val):
+     if isinstance(val, list):
+         # Check if items are dicts with expected keys, otherwise try to parse
+         if all(isinstance(item, dict) and "Question" in item and "Answer" in item for item in val):
+             return val
+         else:
+             # Attempt basic parsing if it's a list of strings (less ideal)
+             parsed_list = []
+             for item in val:
+                 if isinstance(item, str):
+                     q_part = item
+                     a_part = "N/A" # Default answer if structure is wrong
+                     # Simple split logic (adjust if LLM uses different separators)
+                     if "Answer:" in item:
+                         parts = item.split("Answer:", 1)
+                         q_part = parts[0].replace("Question:", "").strip()
+                         a_part = parts[1].strip()
+                     elif "A:" in item:
+                          parts = item.split("A:", 1)
+                          q_part = parts[0].replace("Q:", "").strip()
+                          a_part = parts[1].strip()
+
+                     parsed_list.append({"Question": q_part, "Answer": a_part})
+                 elif isinstance(item, dict): # Keep existing dicts
+                      parsed_list.append(item)
+             return parsed_list
+
+     return [] # Default to empty list
+
 
 # --- Format the Analysis Output as an HTML Fragment ---
 def format_string_response(result, job_info):
+    # Extract data using .get() with defaults and ensure correct types
     suitability = result.get("Suitability", "N/A")
-    interview_questions = result.get("Interview Questions", [])
+    # Use helpers to ensure lists
+    interview_questions = ensure_question_list(result.get("Interview Questions", []))
+    behavioral_questions = ensure_list(result.get("Behavioral Questions", [])) # Added behavioral
     unsuitability_reasons = ensure_list(result.get("Reasons for Unsuitability", []))
     suggestions = ensure_list(result.get("Suggestions", []))
     matched_skills = ensure_list(result.get("Matched Skills", []))
     skill_match_percentage = result.get("Skill Match Percentage", "N/A")
-    
-    # For "Yes" suitability, ensure that more than 5 interview questions (i.e. at least 6) are provided.
-    if suitability.lower() == "yes":
-        if len(interview_questions) < 5:
-            default_questions = [
-                {
-                    "Question": "Can you walk us through your most challenging project?",
-                    "Answer": "This project involved [brief description] where I overcame [specific challenge] by [solution]."
-                },
-                {
-                    "Question": "How do you stay updated with the latest developments in your field?",
-                    "Answer": "I regularly engage with industry news, attend webinars, and follow key influencers."
-                },
-                {
-                    "Question": "What strategies do you use to overcome technical challenges?",
-                    "Answer": "I analyze the problem, research solutions, and consult with colleagues when necessary."
-                },
-                {
-                    "Question": "Can you describe a time when you had to learn a new skill quickly?",
-                    "Answer": "I took an online course and applied the knowledge immediately on a real-world project."
-                },
-                {
-                    "Question": "How do you manage deadlines when multiple projects overlap?",
-                    "Answer": "I prioritize tasks, set clear milestones, and maintain regular communication with my team."
-                },
-            ]
-            # Calculate how many more questions are needed to reach at least 6.
-            questions_needed = 5 - len(interview_questions)
-            interview_questions.extend(default_questions[:questions_needed])
-    
+
+    # Format percentage if it's a number
+    try:
+        skill_match_percentage_str = f"{float(skill_match_percentage):.1f}%" if skill_match_percentage != "N/A" else "N/A"
+    except (ValueError, TypeError):
+        skill_match_percentage_str = str(skill_match_percentage) # Keep as string if conversion fails
+
     job_role = job_info.get("role", "N/A")
     job_desc = job_info.get("description", "N/A")
     job_skills = job_info.get("skills", "N/A")
-    
+
     job_details_html = f"""
         <h3>Job Details</h3>
         <p><strong>Role:</strong> {job_role}</p>
         <p><strong>Job Description:</strong> {job_desc}</p>
         <p><strong>Skills Required:</strong> {job_skills}</p>
     """
-    
+
     matched_skills_html = f"""
         <h3>Matched Skills</h3>
-        <p><strong>Percentage of Required Skills Matched:</strong> {skill_match_percentage}%</p>
+        <p><strong>Percentage of Required Skills Matched:</strong> {skill_match_percentage_str}</p>
         <ul>{"".join(f"<li>{s}</li>" for s in matched_skills)}</ul>
     """
-    
+
+    # --- REMOVED THE HARDCODED QUESTIONS LOGIC ---
+    # Dynamically build the extra section based on suitability
+    extra_section = ""
     if suitability.lower() == "yes":
+        tech_questions_html = "".join(
+            f"<li><strong>Q:</strong> {item.get('Question', 'N/A')}<br><strong>A:</strong> {item.get('Answer', 'N/A')}</li>"
+            for item in interview_questions
+        )
+        behav_questions_html = "".join(
+            f"<li>{q}</li>"
+            for q in behavioral_questions
+        )
+
         extra_section = f"""
             <h3>Interview Questions</h3>
-            <ul>{
-                "".join(
-                    f"<li><strong>Q:</strong> {item.get('Question', 'N/A')}<br><strong>A:</strong> {item.get('Answer', 'N/A')}</li>" 
-                    for item in interview_questions
-                )
-            }</ul>
+            <h4>Technical Questions:</h4>
+            <ul>{tech_questions_html if tech_questions_html else "<li>No technical questions generated.</li>"}</ul>
+            <h4>Behavioral Questions:</h4>
+            <ul>{behav_questions_html if behav_questions_html else "<li>No behavioral questions generated.</li>"}</ul>
         """
-    else:
+    elif suitability.lower() == "no": # Explicitly check for "no"
+        reasons_html = "".join(f"<li>{r}</li>" for r in unsuitability_reasons)
+        suggestions_html = "".join(f"<li>{s}</li>" for s in suggestions)
         extra_section = f"""
             <h3>Reasons for Unsuitability</h3>
-            <ul>{"".join(f"<li>{r}</li>" for r in unsuitability_reasons)}</ul>
+            <ul>{reasons_html if reasons_html else "<li>No specific reasons provided.</li>"}</ul>
             <h3>Suggestions for Improvement</h3>
-            <ul>{"".join(f"<li>{s}</li>" for s in suggestions)}</ul>
+            <ul>{suggestions_html if suggestions_html else "<li>No specific suggestions provided.</li>"}</ul>
         """
-    
+    else: # Handle cases where suitability is neither "Yes" nor "No"
+         extra_section = "<p>Analysis result did not clearly indicate suitability.</p>"
+
+
     formatted_html = f"""
-        <div class="analysis-result" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background-color: #ffffff; color: #000000;">
-            <h2>Suitability: {suitability}</h2>
+        <div class="analysis-result" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background-color: #f9f9f9; color: #333;">
+            <h2 style="color: #0056b3;">Suitability: {suitability}</h2>
             {job_details_html}
             {matched_skills_html}
             {extra_section}
