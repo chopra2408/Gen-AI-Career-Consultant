@@ -1,90 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="is-dark-mode"> <!-- Start in dark mode -->
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gen AI Career Consultant</title>
-  <!-- Materialize CSS -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gen AI Consultant // Aurora</title>
+    <!-- Google Fonts (Example: Poppins) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        // Apply theme immediately - start dark by default this time
+        (function() {
+            const theme = localStorage.getItem('theme') || 'dark'; // Default to dark
+            if (theme === 'dark') {
+                document.documentElement.classList.add('is-dark-mode');
+            } else {
+                 document.documentElement.classList.remove('is-dark-mode');
+            }
+        })();
+    </script>
 </head>
 <body>
-  <div class="container">
-    <h1 class="center-align">Gen AI Career Consultant</h1>
-    <div class="row">
-      <div class="col s12 m8 offset-m2">
-        <div class="card">
-          <div class="card-content">
-            <form id="analysisForm">
-              <div class="input-field">
-                <input id="url" type="text" required>
-                <label for="url">Job Posting URL</label>
-              </div>
-              <div class="file-field input-field">
-                <div class="btn">
-                  <span>Upload Resume (PDF/DOCX)</span>
-                  <input id="resumeFile" type="file" accept=".pdf,.docx">
-                </div>
-                <div class="file-path-wrapper">
-                  <input class="file-path validate" type="text" placeholder="No file selected">
-                </div>
-                <button type="button" id="removeResume" class="btn remove-btn" style="display:none;">&times;</button>
-              </div>
-              <div class="file-field input-field">
-                <div class="btn">
-                  <span>Upload Portfolio (CSV)</span>
-                  <input id="portfolioFile" type="file" accept=".csv">
-                </div>
-                <div class="file-path-wrapper">
-                  <input class="file-path validate" type="text" placeholder="No file selected">
-                </div>
-                <button type="button" id="removePortfolio" class="btn remove-btn" style="display:none;">&times;</button>
-              </div>
-              <!-- New Model Selection Dropdown -->
-              <div class="input-field">
-                <select id="modelChoice">
-                  <option value="" disabled selected>Choose your model</option>
-                  <option value="llama-3.3-70b-versatile">Llama 3.3</option>
-                  <option value="llama-3.2-3b-preview">Llama 3.2</option>
-                  <option value="llama-3.1-8b-instant">Llama 3.1</option>
-                  <option value="gemma2-9b-it">Gemma 2</option>
-                  <option value="mixtral-8x7b-32768">Mistral</option>
-                </select>
-                <label for="modelChoice">Select Chat Model</label>
-              </div>
-              <label>
-                <input type="checkbox" id="useBoth" />
-                <span>Analyze both resume and portfolio</span>
-              </label>
-              <button class="btn waves-effect waves-light" type="submit">Analyze</button>
-            </form>
-            <div id="spinner" class="preloader-wrapper small active" style="display:none;">
-              <div class="spinner-layer spinner-blue-only">
-                <div class="circle-clipper left">
-                  <div class="circle"></div>
-                </div>
-                <div class="gap-patch">
-                  <div class="circle"></div>
-                </div>
-                <div class="circle-clipper right">
-                  <div class="circle"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="error" class="error"></div>
-        <div id="result" class="result"></div>
-      </div>
-    </div>
-  </div>
+    <div class="aurora-background"></div> <!-- Animated background -->
 
-  <!-- Axios for API requests -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
-  <!-- Materialize JS -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-  <!-- Custom JS -->
-  <script src="script.js"></script>
+    <div class="main-container">
+        <!-- Header -->
+        <header class="app-header">
+            <h1 class="app-title">
+                <i class="fas fa-meteor title-icon"></i> Gen AI Consultant
+            </h1>
+            <div class="controls">
+                 <!-- Potential future history button -->
+                 <!-- <button class="control-button history-button" aria-label="View History"><i class="fas fa-history"></i></button> -->
+                <button id="theme-toggle" class="control-button theme-toggle-button" aria-label="Toggle Theme">
+                    <span class="icon"><i id="theme-toggle-icon" class="fas"></i></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Form Section -->
+        <section class="form-section glass-effect">
+            <form id="analysisForm">
+                <div class="field">
+                    <label class="label" for="url">
+                        <i class="fas fa-link fa-fw label-icon"></i> Job Posting URL
+                    </label>
+                    <div class="control">
+                        <input class="input futuristic-input" type="url" id="url" name="url" placeholder="Paste job link here..." required>
+                    </div>
+                </div>
+
+                <div class="file-inputs-grid">
+                    <!-- Resume Input -->
+                    <div class="field file-drop-zone" id="resumeDropZone">
+                        <label class="label"><i class="fas fa-file-alt fa-fw label-icon"></i> Resume</label>
+                        <div class="control file-control">
+                            <input class="file-input-native" type="file" id="resumeFile" name="resume_file" accept=".pdf,.docx">
+                            <div class="file-display">
+                                <span class="file-placeholder">Drag & Drop or Click (PDF/DOCX)</span>
+                                <div class="file-info" id="resumeFileInfo" style="display: none;">
+                                    <i class="fas fa-check-circle file-icon-ok"></i>
+                                    <span class="file-name" id="resumeFileName"></span>
+                                    <button type="button" class="remove-button" id="removeResume" aria-label="Remove Resume"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Portfolio Input -->
+                     <div class="field file-drop-zone" id="portfolioDropZone">
+                        <label class="label"><i class="fas fa-briefcase fa-fw label-icon"></i> Portfolio</label>
+                        <div class="control file-control">
+                            <input class="file-input-native" type="file" id="portfolioFile" name="portfolio_file" accept=".csv">
+                             <div class="file-display">
+                                <span class="file-placeholder">Drag & Drop or Click (CSV)</span>
+                                <div class="file-info" id="portfolioFileInfo" style="display: none;">
+                                    <i class="fas fa-check-circle file-icon-ok"></i>
+                                    <span class="file-name" id="portfolioFileName"></span>
+                                    <button type="button" class="remove-button" id="removePortfolio" aria-label="Remove Portfolio"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="options-grid">
+                    <div class="field">
+                        <label class="label" for="modelChoice"><i class="fas fa-robot fa-fw label-icon"></i> AI Model</label>
+                        <div class="control">
+                            <div class="select-wrapper">
+                                <select class="futuristic-select" id="modelChoice" name="model_choice" required>
+                                    <option value="" disabled selected>Select Model...</option>
+                                     <option value="llama-3.3-70b-versatile">Llama 3.3 (70B)</option>
+                                     <option value="llama-3.2-3b-preview">Llama 3.2 (3B)</option>
+                                     <option value="llama-3.1-8b-instant">Llama 3.1 (8B)</option>
+                                     <option value="gemma2-9b-it">Gemma 2 (9B)</option>
+                                     <option value="qwen-2.5-32b">Qwen 2.5 (32B)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="field checkbox-field">
+                         <label class="futuristic-checkbox">
+                            <input type="checkbox" id="useBoth" name="use_both">
+                            <span class="checkbox-label">Analyze Both Files?</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="submit-area">
+                     <button type="submit" id="submitButton" class="button submit-button">
+                        <span class="button-text" id="buttonText">Analyze <i class="fas fa-arrow-right button-icon-arrow"></i></span>
+                        <span class="button-loader" id="buttonLoader"></span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Loading Overlay (Optional but enhances UX) -->
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Analyzing data streams...</p>
+        </div>
+
+        <!-- Error Display Area -->
+        <div id="error" class="notification error-notification" style="display: none;">
+            <p id="errorMessage"></p>
+            <button class="close-button" aria-label="Dismiss error">×</button>
+        </div>
+
+        <!-- Result Display Area -->
+        <section id="result" class="result-section" style="display: none;">
+            <!-- Results will be injected here -->
+        </section>
+
+    </div> <!-- End Main Container -->
+
+    <!-- Axios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.2/axios.min.js"></script>
+    <!-- Custom JS -->
+    <script src="script.js"></script>
 </body>
 </html>
