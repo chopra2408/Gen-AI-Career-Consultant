@@ -58,38 +58,30 @@ def format_string_response(result, job_info):
     suitability = result.get("Suitability", "N/A")
     # Use helpers to ensure lists
     interview_questions = ensure_question_list(result.get("Interview Questions", []))
-    behavioral_questions = ensure_list(result.get("Behavioral Questions", [])) # Added behavioral
+    behavioral_questions = ensure_list(result.get("Behavioral Questions", []))
     unsuitability_reasons = ensure_list(result.get("Reasons for Unsuitability", []))
     suggestions = ensure_list(result.get("Suggestions", []))
     matched_skills = ensure_list(result.get("Matched Skills", []))
     skill_match_percentage = result.get("Skill Match Percentage", "N/A")
+    
+    # Format HTML base structure
+    html = f"""
+    <div class="analysis-result">
+        <h2>Suitability: {suitability}</h2>
 
-    # Format percentage if it's a number
-    try:
-        skill_match_percentage_str = f"{float(skill_match_percentage):.1f}%" if skill_match_percentage != "N/A" else "N/A"
-    except (ValueError, TypeError):
-        skill_match_percentage_str = str(skill_match_percentage) # Keep as string if conversion fails
-
-    job_role = job_info.get("role", "N/A")
-    job_desc = job_info.get("description", "N/A")
-    job_skills = job_info.get("skills", "N/A")
-
-    job_details_html = f"""
         <h3>Job Details</h3>
-        <p><strong>Role:</strong> {job_role}</p>
-        <p><strong>Job Description:</strong> {job_desc}</p>
-        <p><strong>Skills Required:</strong> {job_skills}</p>
-    """
+        <p><strong>Role:</strong> {job_info.get("role", "N/A")}</p>
+        <p><strong>Description:</strong> {job_info.get("description", "N/A")}</p>
+        <p><strong>Skills Required:</strong> {', '.join(job_info.get("skills", []))}</p>
 
-    matched_skills_html = f"""
         <h3>Matched Skills</h3>
-        <p><strong>Percentage of Required Skills Matched:</strong> {skill_match_percentage_str}</p>
-        <ul>{"".join(f"<li>{s}</li>" for s in matched_skills)}</ul>
+        <p><strong>Percentage:</strong> {skill_match_percentage}%</p>
+        <ul>
+            {''.join(f'<li>{skill}</li>' for skill in matched_skills)}
+        </ul>
     """
-
-    # --- REMOVED THE HARDCODED QUESTIONS LOGIC ---
-    # Dynamically build the extra section based on suitability
-    extra_section = ""
+    
+    # Add conditional sections based on suitability
     if suitability.lower() == "yes":
         tech_questions_html = "".join(
             f"<li><strong>Q:</strong> {item.get('Question', 'N/A')}<br><strong>A:</strong> {item.get('Answer', 'N/A')}</li>"
@@ -100,32 +92,26 @@ def format_string_response(result, job_info):
             for q in behavioral_questions
         )
 
-        extra_section = f"""
+        html += f"""
             <h3>Interview Questions</h3>
             <h4>Technical Questions:</h4>
             <ul>{tech_questions_html if tech_questions_html else "<li>No technical questions generated.</li>"}</ul>
             <h4>Behavioral Questions:</h4>
             <ul>{behav_questions_html if behav_questions_html else "<li>No behavioral questions generated.</li>"}</ul>
         """
-    elif suitability.lower() == "no": # Explicitly check for "no"
+    elif suitability.lower() == "no":
         reasons_html = "".join(f"<li>{r}</li>" for r in unsuitability_reasons)
         suggestions_html = "".join(f"<li>{s}</li>" for s in suggestions)
-        extra_section = f"""
+        html += f"""
             <h3>Reasons for Unsuitability</h3>
             <ul>{reasons_html if reasons_html else "<li>No specific reasons provided.</li>"}</ul>
             <h3>Suggestions for Improvement</h3>
             <ul>{suggestions_html if suggestions_html else "<li>No specific suggestions provided.</li>"}</ul>
         """
-    else: # Handle cases where suitability is neither "Yes" nor "No"
-         extra_section = "<p>Analysis result did not clearly indicate suitability.</p>"
-
-
-    formatted_html = f"""
-        <div class="analysis-result" style="border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; background-color: #f9f9f9; color: #333;">
-            <h2 style="color: #0056b3;">Suitability: {suitability}</h2>
-            {job_details_html}
-            {matched_skills_html}
-            {extra_section}
-        </div>
-    """
-    return formatted_html
+    else:
+        html += "<p>Analysis result did not clearly indicate suitability.</p>"
+    
+    # Close the main div
+    html += "</div>"
+    
+    return html
