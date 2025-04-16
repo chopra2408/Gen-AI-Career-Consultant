@@ -94,28 +94,26 @@ jobs:
           # Assumes pytest is installed via requirements.txt
           pytest || true # Allow job to pass even if tests fail (adjust if needed)
 
-  deploy:
+    deploy:
     runs-on: ubuntu-latest
-    # This job depends on the test job succeeding
     needs: test
-    # IMPORTANT: Only run deploy on pushes to the main/master branch
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    # UPDATE THIS LINE to check for your 'changes' branch
+    if: github.ref == 'refs/heads/changes'
     environment: production # Optional: Define a GitHub environment for secrets/rules
     steps:
       # Step 1: Download the artifact created by the build job
       - name: Download artifact
-        uses: actions/download-artifact@v4 # Use v4
+        uses: actions/download-artifact@v4
         with:
-          name: app-package # Must match the upload name in the build job
-          # No path specified, defaults to current directory
+          name: app-package
 
       # Step 2: Configure AWS credentials
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4 # Use v4
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # Make sure this is the correct region for your EC2 instance
+          aws-region: us-east-1 # Make sure this is the correct region
 
       # Step 3: Prepare SSH key
       - name: Set up SSH key
@@ -123,58 +121,34 @@ jobs:
           mkdir -p ~/.ssh/
           echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deployment_key
           chmod 600 ~/.ssh/id_deployment_key
-          # Optional: Add known hosts to avoid prompt if not using StrictHostKeyChecking=no
-          # ssh-keyscan -H 54.152.117.53 >> ~/.ssh/known_hosts
 
       # Step 4: Transfer artifact to EC2
       - name: Transfer artifact to EC2
         env:
           SSH_KEY_PATH: ~/.ssh/id_deployment_key
-          SSH_USER: ubuntu # Ensure this is the correct user for your EC2 AMI
-          EC2_PUBLIC_IP: 54.152.117.53 # Use the correct IP from your context
-          REMOTE_PATH: /home/ubuntu/ # Target directory on EC2
+          SSH_USER: ubuntu
+          EC2_PUBLIC_IP: 54.152.117.53
+          REMOTE_PATH: /home/ubuntu/
         run: |
-          # Use the artifact downloaded in step 1 (it's named app.zip in the current dir)
           scp -o StrictHostKeyChecking=no -i $SSH_KEY_PATH app.zip $SSH_USER@$EC2_PUBLIC_IP:$REMOTE_PATH
 
-      # Step 5: Deploy on EC2 (Unzip, Install Dependencies, Restart Service)
+      # Step 5: Deploy on EC2
       - name: Deploy on EC2
         env:
           SSH_KEY_PATH: ~/.ssh/id_deployment_key
           SSH_USER: ubuntu
           EC2_PUBLIC_IP: 54.152.117.53
           REMOTE_PATH: /home/ubuntu/
-          APP_DIR: /home/ubuntu/app # Define the application directory
+          APP_DIR: /home/ubuntu/app
         run: |
           ssh -o StrictHostKeyChecking=no -i $SSH_KEY_PATH $SSH_USER@$EC2_PUBLIC_IP << EOF
-            # Create app directory if it doesn't exist
             mkdir -p $APP_DIR
-
-            # Unzip artifact into the app directory, overwriting existing files
             unzip -o ${REMOTE_PATH}app.zip -d $APP_DIR
-
-            # Navigate to the app directory
             cd $APP_DIR
-
-            # Recommended: Create/activate a virtual environment
-            # python3 -m venv venv
-            # source venv/bin/activate
-
-            # Install dependencies within the app directory
-            # Ensure pip and python point to the correct versions on the EC2 instance
+            # Consider virtual env setup here
             python3 -m pip install --upgrade pip
             pip install -r requirements.txt
-
-            # Add commands to restart your application service
-            # Example for systemd:
-            # sudo systemctl restart myapp.service
-            # Example for supervisor:
-            # sudo supervisorctl restart myapp
-            # Example for gunicorn/uvicorn run directly (ensure correct paths/users):
-            # pkill gunicorn # or pkill uvicorn
-            # nohup gunicorn --workers 4 --bind 0.0.0.0:8000 myapp.wsgi:application &
+            # Add commands to restart your application here!
             echo "Deployment commands executed. Add application restart commands here."
-
-            # Clean up the uploaded zip file
-            # rm ${REMOTE_PATH}app.zip
+            # rm ${REMOTE_PATH}app.zip # Optional cleanup
           EOF
