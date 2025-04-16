@@ -4,7 +4,7 @@ langchain-community
 fastapi
 uvicorn
 python-docx
-python-dotenvv
+python-dotenv
 pypdf2
 pandas
 langchain-core
