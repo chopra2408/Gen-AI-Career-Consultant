@@ -42,7 +42,7 @@ jobs:
           zip -r artifact/app.zip . -x '*.git*' -x 'artifact/*'
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: app-package
           path: artifact/app.zip
