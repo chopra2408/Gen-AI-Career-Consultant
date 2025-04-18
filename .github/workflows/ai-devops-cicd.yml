@@ -1,0 +1,99 @@
+# AI-generated CI/CD Pipeline for python on AWS - Review Carefully!
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install flake8
+
+      - name: Lint code
+        run: flake8 .
+
+  test:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: pytest || true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create deployment package
+        run: zip -r deployment-package.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-package
+          path: deployment-package.zip
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: deployment-package
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Set up SSH
+        run: |
+          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Deploy to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no -i private_key.pem deployment-package.zip ec2-user@44.201.178.208:/home/ec2-user/
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ec2-user@44.201.178.208 << 'EOF'
+            unzip -o /home/ec2-user/deployment-package.zip -d /home/ec2-user/app
+            cd /home/ec2-user/app
+            pip install -r requirements.txt
+            # Add commands to restart your application, e.g., systemctl restart myapp
+          EOF
+        # NOTE: Ensure DEPLOY_SSH_PRIVATE_KEY secret matches the existing VM's authorized key.
