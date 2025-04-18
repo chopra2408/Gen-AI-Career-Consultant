@@ -2,10 +2,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - changes
+      - changes  # Your main branch is 'changes'
   pull_request:
     branches:
-      - changes
+      - changes  # Pull requests targeting your main branch
 
 jobs:
   build-and-test:
@@ -72,7 +72,7 @@ jobs:
 
   deploy:
     needs: build-and-test
-    if: github.ref == 'refs/heads/changes' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/changes' && github.event_name == 'push'  # Deploy on push to changes branch
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
@@ -104,7 +104,7 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USERNAME: ubuntu
         run: |
-          # Debug information
+          # Debug information - First few characters for safety
           echo "Setting up deployment to host (partially redacted): ${EC2_HOST:0:5}..."
           
           # Add EC2 host to known hosts to avoid prompt
