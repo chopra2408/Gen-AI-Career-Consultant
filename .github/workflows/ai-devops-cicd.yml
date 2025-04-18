@@ -1,158 +1,86 @@
 # AI-generated CI/CD Pipeline for python on AWS - Review Carefully!
 name: CI/CD Pipeline
 
-# Trigger the workflow ONLY on pushes to the 'changes' branch
 on:
   push:
     branches:
-      - changes # This is now the ONLY branch that triggers the entire workflow
+      - main
+      - master
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
+  lint:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x' # Consider '3.9', '3.10', etc.
-
-      - name: Cache pip
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
+          python-version: '3.x'
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: pip install flake8
+      - name: Lint with flake8
+        run: flake8 .
 
   test:
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Restore cache if dependencies are needed for tests
-      - name: Cache pip
-        uses: actions/cache@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install dependencies # Install again if needed for test runner/deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          # Install test-specific dependencies (e.g., pip install pytest)
-          pip install pytest
-
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
       - name: Run tests
-        run: |
-          pytest || true # Allow failure if tests optional/not found
+        run: pytest || true
 
   build:
     runs-on: ubuntu-latest
-    needs: test # Or 'setup' if tests are optional/unreliable
+    needs: test
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Dependencies are usually not needed again here if just zipping source code
-      # They will be installed on the server during deployment
-
-      - name: Create deployment package
-        run: |
-          # Zip the source code repository content needed for deployment
-          # Ensure requirements.txt IS included if the server runs pip install
-          zip -r deployment-package.zip . -x '.git*' -x 'tests/*' -x 'private_key.pem' -x '__pycache__/*' -x '*.pyc' -x '.github/*' -x '.pytest_cache/*'
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          name: deployment-package
-          path: deployment-package.zip
+          python-version: '3.x'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Create deployment package
+        run: zip -r deployment-package.zip . -x "*.git*"
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    # Run this job ONLY if the push was to the 'changes' branch
-    if: github.ref == 'refs/heads/changes'
-    environment: production # Optional: Define deployment environment
-
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
-      # No checkout needed
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: deployment-package
-          # Defaults to workspace root
-
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2 # Consider v4 if issues
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # MUST match EC2 instance region
+          aws-region: us-east-1
 
-      - name: Set up SSH key
+      - name: Retrieve SSH key
+        run: echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > private_key.pem
+      - name: Set SSH key permissions
+        run: chmod 600 private_key.pem
+
+      - name: Transfer deployment package
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa_deploy
-          chmod 600 ~/.ssh/id_rsa_deploy
+          scp -o StrictHostKeyChecking=no -i private_key.pem deployment-package.zip ec2-user@54.210.137.176:/home/ec2-user/
 
-      - name: Add EC2 host key to known_hosts
+      - name: Deploy application
         run: |
-          sleep 5 # Allow network propagation
-          # Replace IP with your actual EC2 instance IP
-          ssh-keyscan -H 54.210.137.176 >> ~/.ssh/known_hosts
-
-      - name: Transfer package to EC2
-        run: |
-          # Replace user/IP with your actual EC2 user and IP
-          scp -i ~/.ssh/id_rsa_deploy deployment-package.zip ec2-user@54.210.137.176:/home/ec2-user/
-
-      - name: Deploy on EC2
-        run: |
-          # Replace user/IP with your actual EC2 user and IP
-          ssh -i ~/.ssh/id_rsa_deploy ec2-user@54.210.137.176 << 'EOF'
-          # Optional: Stop previous service
-          # systemctl stop myapp || true
-
-          # Target directory for the application
-          APP_DIR="/home/ec2-user/app"
-          echo "Creating/Cleaning application directory: $APP_DIR"
-          mkdir -p $APP_DIR
-          # rm -rf $APP_DIR/* # Uncomment carefully if you need a clean deploy
-
-          echo "Unzipping package to $APP_DIR"
-          unzip -o /home/ec2-user/deployment-package.zip -d $APP_DIR
-
-          echo "Changing directory to $APP_DIR"
-          cd $APP_DIR
-
-          echo "Installing dependencies from requirements.txt..."
-          # Ensure python3/pip points to the correct version on the server
-          # Consider using a virtual environment:
-          # if [ ! -d "venv" ]; then python3 -m venv venv; fi
-          # source venv/bin/activate
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ec2-user@54.210.137.176 << 'EOF'
+          unzip -o deployment-package.zip -d /home/ec2-user/app/
+          cd /home/ec2-user/app/
           pip install -r requirements.txt
-          # deactivate # if using venv
-
-          echo "Installation complete. Restarting application..."
-          # --- CRITICAL: Add commands to restart your specific application service HERE ---
-          # Example: sudo systemctl restart myapp.service
-          # Example: pm2 reload your_app_name
-          # Example: pkill -f your_script.py || true && nohup python your_script.py &
-          # ------------------------------------------------------------------------------
-          echo "Deployment script finished."
+          # Restart application service
+          # Example: systemctl restart myapp
           EOF
-        # NOTE: Ensure DEPLOY_SSH_PRIVATE_KEY secret matches the key authorized on the EC2 instance.
+        # NOTE: Ensure DEPLOY_SSH_PRIVATE_KEY secret matches the existing VM's authorized key.
