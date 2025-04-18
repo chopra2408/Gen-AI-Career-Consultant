@@ -134,7 +134,7 @@ jobs:
               fi
               # Clean up
               rm app.zip
-EOF
+          EOF
           else
             echo "EC2_HOST is not set correctly. Deployment cannot proceed."
             exit 1
