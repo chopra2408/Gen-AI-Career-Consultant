@@ -4,7 +4,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main # Changed from 'changes' - assuming 'main' is the primary branch for build/deploy
+      - changes # Changed from 'changes' - assuming 'main' is the primary branch for build/deploy
       - master
 
 jobs:
