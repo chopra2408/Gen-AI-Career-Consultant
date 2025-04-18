@@ -80,39 +80,69 @@ jobs:
         with:
           name: app-package
       
+      - name: Debug secrets
+        run: |
+          echo "Checking if EC2_HOST secret is available..."
+          if [ -n "${{ secrets.EC2_HOST }}" ]; then
+            echo "EC2_HOST secret is defined"
+          else
+            echo "EC2_HOST secret is NOT defined"
+          fi
+          
+          echo "Checking if DEPLOY_SSH_PRIVATE_KEY secret is available..."
+          if [ -n "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" ]; then
+            echo "DEPLOY_SSH_PRIVATE_KEY secret is defined"
+          else
+            echo "DEPLOY_SSH_PRIVATE_KEY secret is NOT defined"
+          fi
+      
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       
       - name: Deploy to EC2
+        if: ${{ secrets.EC2_HOST != '' }}
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USERNAME: ubuntu
         run: |
+          # Debug information
+          echo "Setting up deployment to host (partially redacted): ${EC2_HOST:0:5}..."
+          
           # Add EC2 host to known hosts to avoid prompt
           mkdir -p ~/.ssh
-          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
           
-          # Transfer the application package
-          scp app.zip $EC2_USERNAME@$EC2_HOST:~/
-          
-          # Execute deployment commands on remote server
-          ssh $EC2_USERNAME@$EC2_HOST << 'EOF'
-            cd ~
-            unzip -o app.zip
-            if [ -f deploy.sh ]; then
-              chmod +x deploy.sh
-              ./deploy.sh
-            else
-              echo "No deploy.sh found, using default deployment"
-              # Install dependencies
-              python -m pip install -r requirements.txt
-              
-              # Add any additional deployment steps here
-              # For example, if this is a Flask app, you might want to restart Gunicorn:
-              # sudo systemctl restart myapp
-            fi
-            # Clean up
-            rm app.zip
-          EOF
+          # Use explicit host instead of environment variable
+          if [ -n "$EC2_HOST" ]; then
+            ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+            
+            # Transfer the application package
+            scp app.zip $EC2_USERNAME@$EC2_HOST:~/
+            
+            # Execute deployment commands on remote server
+            ssh $EC2_USERNAME@$EC2_HOST << 'EOF'
+              cd ~
+              unzip -o app.zip
+              if [ -f deploy.sh ]; then
+                chmod +x deploy.sh
+                ./deploy.sh
+              else
+                echo "No deploy.sh found, using default deployment"
+                # Install dependencies
+                python -m pip install -r requirements.txt
+              fi
+              # Clean up
+              rm app.zip
+EOF
+          else
+            echo "EC2_HOST is not set correctly. Deployment cannot proceed."
+            exit 1
+          fi
+      
+      - name: Deployment failed - missing secrets
+        if: ${{ secrets.EC2_HOST == '' }}
+        run: |
+          echo "Deployment cannot proceed because EC2_HOST secret is not configured."
+          echo "Please add the EC2_HOST secret in your repository settings."
+          echo "Settings > Secrets and variables > Actions > New repository secret"
