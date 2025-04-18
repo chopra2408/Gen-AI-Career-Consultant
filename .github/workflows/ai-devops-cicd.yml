@@ -2,10 +2,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - changes
+      - changes  # Your main branch
   pull_request:
     branches:
-      - main
+      - changes  # Pull requests targeting your main branch
 
 jobs:
   build-and-test:
@@ -72,7 +72,7 @@ jobs:
 
   deploy:
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/changes' && github.event_name == 'push'  # Deploy on push to changes branch
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
@@ -106,9 +106,12 @@ jobs:
               ./deploy.sh
             else
               echo "No deploy.sh found, using default deployment"
-              # Add default deployment commands here if needed
+              # Install dependencies
               python -m pip install -r requirements.txt
-              # If you're using a framework like Flask or Django, add appropriate restart commands
+              
+              # Add any additional deployment steps here
+              # For example, if this is a Flask app, you might want to restart Gunicorn:
+              # sudo systemctl restart myapp
             fi
             # Clean up
             rm app.zip
