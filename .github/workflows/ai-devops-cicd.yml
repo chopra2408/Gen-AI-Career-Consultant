@@ -1,5 +1,4 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches:
@@ -11,44 +10,85 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4  # Updated to latest version
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4  # Updated to latest version
+        with:
+          python-version: '3.10'  # Specifically defined Python version
+          cache: 'pip'  # Enable pip caching
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt found"
+          fi
+          pip install pytest pytest-cov  # Added code coverage tool
+      
+      - name: Run linting
+        run: |
+          pip install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        continue-on-error: true  # Allow the pipeline to continue even if linting fails
+      
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=./ --cov-report=xml
+      
+      - name: Archive application
+        run: |
+          zip -r app.zip . -x "*.git*" "*.github*" "*.pytest_cache*" "__pycache__*"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-package
+          path: app.zip
+          retention-days: 5
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Install pytest
-      run: |
-        pip install pytest
-
-    - name: Run tests
-      run: |
-        pytest
-
-    - name: Archive build output
-      run: |
-        zip -r app.zip .
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app.zip
-        path: app.zip
-
-    - name: Output deployment instructions
-      run: |
-        echo "To deploy the application, follow these steps:"
-        echo "1. Download the artifact app.zip from the GitHub Actions artifacts."
-        echo "2. Secure copy the artifact to your EC2 instance:"
-        echo "   scp -i /path/to/your_key.pem app.zip ubuntu@VM_PUBLIC_IP:~/"
-        echo "3. SSH into your EC2 instance and run the deployment script:"
-        echo "   ssh -i /path/to/your_key.pem ubuntu@VM_PUBLIC_IP \"cd ~ && unzip app.zip && ./deploy.sh\""
+  deploy:
+    needs: build-and-test  # This job depends on successful completion of build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'  # Only deploy on push to main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-package
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ubuntu
+        run: |
+          # Add EC2 host to known hosts to avoid prompt
+          mkdir -p ~/.ssh
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+          
+          # Transfer the application package
+          scp app.zip $EC2_USERNAME@$EC2_HOST:~/
+          
+          # Execute deployment commands on remote server
+          ssh $EC2_USERNAME@$EC2_HOST << 'EOF'
+            cd ~
+            unzip -o app.zip
+            if [ -f deploy.sh ]; then
+              chmod +x deploy.sh
+              ./deploy.sh
+            else
+              echo "No deploy.sh found, using default deployment"
+              # Add default deployment commands here if needed
+              # Example: restart a service, etc.
+            fi
+            # Clean up
+            rm app.zip
