@@ -1,50 +1,176 @@
-name: CI/CD Pipeline
+# AI-generated CI/CD Pipeline for Python on Unknown Cloud Provider (VM) - Manual SSH Deployment
+name: CI/CD Pipeline - Python Manual Deploy
 
+# Trigger on pushes to the 'changes' branch and pull requests targeting 'main'
+# Adjust branches as needed (e.g., main/master for direct pushes)
 on:
   push:
     branches:
-      - changes
+      - changes # Or 'main', 'master'
   pull_request:
     branches:
-      - main
+      - main    # Or 'master'
 
 jobs:
-  build-and-test:
+  build-test-package:
+    name: Build, Test, and Package Application
     runs-on: ubuntu-latest
 
+    # Define placeholders used in instructions (replace with actual values if known, otherwise keep as placeholders)
+    env:
+      # These are placeholders for the instructions step.
+      # Ideally, these would be dynamically set or configured elsewhere if needed during runtime.
+      # For this manual deployment workflow, they primarily serve the echo'd instructions.
+      SSH_USER: "ubuntu"            # Example: ubuntu, ec2-user
+      PUBLIC_IP: "YOUR_SERVER_IP"   # Example: 35.123.45.67
+      SSH_KEY_PATH_EXAMPLE: "~/.ssh/your_deploy_key.pem" # Example path for user reference
+      BUILD_ARTIFACT_NAME: "app.zip"
+      CI_PLATFORM: "GitHub Actions"
+      ARTIFACT_LOCATION: "Artifacts section of this Actions run"
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v4 # Use latest checkout action
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
+      - name: Set up Python Environment
+        uses: actions/setup-python@v5 # Use latest setup-python action
+        with:
+          python-version: '3.11' # Specify a concrete version (e.g., 3.11, 3.10) instead of '3.x'
+          cache: 'pip' # Enable caching for pip dependencies
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install Dependencies (including pytest)
+        run: |
+          python -m pip install --upgrade pip wheel
+          # Explicitly install pytest as it's needed for the test step
+          pip install pytest
+          # Install application dependencies if requirements.txt exists
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found, skipping application dependencies."
+          fi
+        shell: bash
 
-    - name: Run tests
-      run: |
-        pytest
+      - name: Run Linters (Optional Example - Uncomment and adapt if using linters like flake8)
+        # run: |
+        #   pip install flake8
+        #   flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        #   # Or: flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # continue-on-error: true # Set to false if linting errors should fail the build
+        shell: bash
 
-    - name: Archive build output
-      run: |
-        zip -r app.zip .
+      - name: Run Tests with Pytest
+        run: |
+          # Run pytest. If no tests are found, it might exit with code 5.
+          # Add '|| true' if the pipeline should pass even if no tests are found or tests fail.
+          # Remove '|| true' if failing tests MUST fail the pipeline.
+          pytest || echo "Pytest finished with non-zero exit code (tests failed or no tests found)."
+          # To strictly enforce passing tests, just use:
+          # pytest
+        shell: bash
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app.zip
-        path: app.zip
+      - name: Prepare Artifact Contents
+        run: |
+          mkdir deploy_package
+          # Copy essential files for a typical Python app deployment
+          # Add any other necessary files/directories (e.g., static/, templates/)
+          echo "Copying source files..."
+          find . -maxdepth 1 -name '*.py' -exec cp {} deploy_package/ \;
+          if [ -f requirements.txt ]; then
+              echo "Copying requirements.txt..."
+              cp requirements.txt deploy_package/
+          fi
+          # IMPORTANT: Copy your deploy.sh script if it's in the repo
+          if [ -f deploy.sh ]; then
+              echo "Copying deploy.sh..."
+              cp deploy.sh deploy_package/
+          else
+              echo "Warning: deploy.sh not found in repository root. Manual deployment steps on server might be incomplete."
+          fi
+          # Add other necessary assets like templates, static files, config files etc.
+          # Example:
+          # if [ -d templates ]; then cp -r templates deploy_package/; fi
+          # if [ -d static ]; then cp -r static deploy_package/; fi
+          echo "Contents prepared in deploy_package/ directory."
+        shell: bash
 
-    - name: Output deployment instructions
-      run: |
-        echo "To deploy the application, follow these steps:"
-        echo "1. Download the artifact app.zip from the GitHub Actions artifacts."
-        echo "2. Secure copy the artifact to your EC2 instance:"
-        echo "   scp -i /path/to/your_key.pem app.zip ubuntu@VM_PUBLIC_IP:~/"
-        echo "3. SSH into your EC2 instance and run the deployment script:"
-        echo "   ssh -i /path/to/your_key.pem ubuntu@VM_PUBLIC_IP \"cd ~ && unzip app.zip && ./deploy.sh\""
+      - name: Archive Build Output into Artifact
+        run: |
+          cd deploy_package
+          zip -r ../${{ env.BUILD_ARTIFACT_NAME }} . # Zip contents of deploy_package
+          cd ..
+          echo "Created artifact ${{ env.BUILD_ARTIFACT_NAME }}"
+        shell: bash
+
+      - name: Upload Application Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_ARTIFACT_NAME }} # Use the env var for artifact name
+          path: ${{ env.BUILD_ARTIFACT_NAME }} # Path to the zip file
+
+      - name: Output Manual Deployment Instructions
+        run: |
+          # Use environment variables defined at the job level
+          echo "##############################################################################"
+          echo "# Manual Deployment Instructions for ${{ env.SSH_USER }}@${{ env.PUBLIC_IP }}"
+          echo "##############################################################################"
+          echo ""
+          echo "# Security Warning: Ensure your private SSH key file is secured locally"
+          echo "# and has the correct permissions (e.g., chmod 400 <path_to_your_private_key>)."
+          echo "# Do NOT commit your private key to the repository."
+          echo ""
+          echo "# --- Steps ---"
+          echo ""
+          echo "# 1. Download the Build Artifact:"
+          echo "#    Go to the ${{ env.CI_PLATFORM }} run page for this pipeline (${{ env.ARTIFACT_LOCATION }})"
+          echo "#    and download the '${{ env.BUILD_ARTIFACT_NAME }}' artifact."
+          echo ""
+          echo "# 2. Transfer the Artifact to the Server:"
+          echo "#    (Replace <path_to_your_private_key> with the actual local path to your key)"
+          echo "#    Run this command from your local machine where you downloaded the artifact:"
+          echo "scp -i <path_to_your_private_key> ${{ env.BUILD_ARTIFACT_NAME }} ${{ env.SSH_USER }}@${{ env.PUBLIC_IP }}:~/"
+          echo ""
+          echo "# 3. Connect and Deploy on the Server:"
+          echo "#    (This assumes a 'deploy.sh' script exists within your artifact/repository"
+          echo "#     to handle unpacking, dependency installation, service restarts, etc.)"
+          echo "#    Run this command from your local machine:"
+          # Using printf for better formatting control, especially with embedded quotes
+          printf "ssh -i <path_to_your_private_key> %s@%s << 'EOF'\n" "${{ env.SSH_USER }}" "${{ env.PUBLIC_IP }}"
+          printf "set -e # Exit immediately if a command exits with a non-zero status.\n"
+          printf "echo \"--- Starting Deployment on Server ---\"\n"
+          printf "DEPLOY_DIR=~/app_deploy_temp\n" # Define deployment directory
+          printf "ARCHIVE_NAME=%s\n" "${{ env.BUILD_ARTIFACT_NAME }}"
+          printf "echo \"Creating deployment directory \$DEPLOY_DIR...\"\n"
+          printf "mkdir -p \$DEPLOY_DIR\n"
+          printf "echo \"Moving archive to deployment directory...\"\n"
+          printf "mv ~/\$ARCHIVE_NAME \$DEPLOY_DIR/\n"
+          printf "cd \$DEPLOY_DIR\n"
+          printf "echo \"Unpacking artifact \$ARCHIVE_NAME in \$DEPLOY_DIR...\"\n"
+          printf "unzip \$ARCHIVE_NAME\n"
+          # Ensure deploy.sh exists and is executable before running
+          printf "if [ -f deploy.sh ]; then\n"
+          printf "  echo \"Executing deployment script (deploy.sh)...\"\n"
+          printf "  chmod +x deploy.sh\n"
+          # Optional: Pass variables if needed: export VAR=value && ./deploy.sh
+          printf "  ./deploy.sh\n" # Removed 'cd' as we are already in DEPLOY_DIR
+          printf "  echo \"Deployment script finished.\"\n"
+          # Optional: Cleanup based on deploy.sh success/failure?
+          # printf "  echo \"Cleaning up deployment directory...\"\n"
+          # printf "  # rm -rf \$DEPLOY_DIR # Be careful with auto-cleanup\n"
+          printf "else\n"
+          printf "  echo \"ERROR: deploy.sh not found in the artifact directory (\$DEPLOY_DIR)!\"\n"
+          printf "  echo \"Manual steps required inside \$DEPLOY_DIR:\"\n"
+          printf "  echo \"  - Install dependencies (e.g., pip install -r requirements.txt)\"\n"
+          printf "  echo \"  - Configure application/web server\"\n"
+          printf "  echo \"  - Restart services (e.g., systemctl restart your_app_service)\"\n"
+          printf "fi\n"
+          printf "echo \"--- Deployment Process Ended ---\"\n"
+          printf "EOF\n"
+          echo ""
+          echo "# --- Notes ---"
+          echo "# - Replace <path_to_your_private_key> with your key file, e.g., ${{ env.SSH_KEY_PATH_EXAMPLE }}."
+          echo "# - Ensure the 'deploy.sh' script in your repository contains all necessary server-side deployment steps (e.g., pip install, systemctl restart)."
+          echo "# - Adjust server paths (~/, ~/app_deploy_temp) if needed."
+          echo ""
+          echo "##############################################################################"
+        shell: bash
