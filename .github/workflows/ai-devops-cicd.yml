@@ -72,7 +72,7 @@ jobs:
 
   deploy:
     needs: build-and-test
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/changes' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Download artifact
