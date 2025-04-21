@@ -28,6 +28,7 @@ jobs:
       run: |
         echo "$DEPLOY_SSH_PRIVATE_KEY" > deploy_key
         chmod 600 deploy_key
-        scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip ec2-user@your_server_ip:~/
-        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@your_server_ip 'bash ~/deploy.sh'
+        scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip ec2-user@13.219.94.111:~/
+        # Corrected line with space added
+        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@13.219.94.111 'bash ~/deploy.sh'
         rm deploy_key
