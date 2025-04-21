@@ -32,9 +32,10 @@ jobs:
       if: ${{ github.event_name == 'push' }}
       env:
         DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        
       run: |
         echo "$DEPLOY_SSH_PRIVATE_KEY" > deploy_key
         chmod 600 deploy_key
-        scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip ec2-user@YOUR_SERVER_IP:~/
-        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@YOUR_SERVER_IP 'bash ~/deploy.sh'
+        scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip ec2-user@13.219.94.111:~/
+        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@13.219.94.111'bash ~/deploy.sh'
         rm deploy_key
