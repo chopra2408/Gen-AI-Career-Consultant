@@ -1,38 +1,30 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches:
       - changes
       - master
-
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-
     - name: Test
       run: echo "Running tests (placeholder)"
-
     - name: Archive application
       run: |
         zip -r app.zip . -x "*.git*" -x "*__pycache__*" -x "*.venv*" -x "*.github*"
-
     - name: Deploy to EC2
-      if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+      if: ${{ github.ref == 'refs/heads/changes' || github.ref == 'refs/heads/master' }}
       env:
         DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       run: |
