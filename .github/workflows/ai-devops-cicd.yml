@@ -25,11 +25,18 @@ jobs:
         zip -r app.zip . -x "*.git*" -x "*__pycache__*" -x "*.venv*" -x "*.github*"
     - name: Deploy to EC2
       if: ${{ github.ref == 'refs/heads/changes' || github.ref == 'refs/heads/master' }}
-      env:
-        DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-      run: |
-        echo "$DEPLOY_SSH_PRIVATE_KEY" > deploy_key
-        chmod 600 deploy_key
-        scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip ubuntu@3.84.24.152:~
-        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@3.84.24.152 'bash ~/deploy.sh'
-      shell: bash
+      uses: appleboy/scp-action@master
+      with:
+        host: 3.84.24.152
+        username: ubuntu
+        key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        source: app.zip
+        target: ~
+    - name: Run deployment script
+      if: ${{ github.ref == 'refs/heads/changes' || github.ref == 'refs/heads/master' }}
+      uses: appleboy/ssh-action@master
+      with:
+        host: 3.84.24.152
+        username: ubuntu
+        key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+        script: bash ~/deploy.sh
