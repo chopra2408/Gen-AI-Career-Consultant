@@ -1,33 +1,25 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches:
       - changes
       - master
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.x'
-
     - name: Install dependencies
       run: pip install -r requirements.txt
-
     - name: Test application
       run: echo "Running tests..." # Replace with actual test command if available
-
     - name: Archive application
       run: zip -r app.zip . -x "*.git*" -x "node_modules/*" -x "venv/*"
-
     - name: Deploy to EC2
       if: ${{ github.event_name == 'push' }}
       env:
@@ -37,5 +29,5 @@ jobs:
         echo "$DEPLOY_SSH_PRIVATE_KEY" > deploy_key
         chmod 600 deploy_key
         scp -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null app.zip ec2-user@13.219.94.111:~/
-        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@13.219.94.111'bash ~/deploy.sh'
+        ssh -i deploy_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ec2-user@13.219.94.111 'bash ~/deploy.sh'
         rm deploy_key
